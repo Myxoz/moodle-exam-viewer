@@ -1,13 +1,37 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>moodle-exam-viewer</title>
+    <link rel="stylesheet" href="src/style.css" />
+	<script type="module" src="src/main.ts"></script>
+    <title>Moodle Exam Viewer</title>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <div id="introduction">
+		<h1>Moodle Klausureinsicht</h1>
+		<h2>1. Lade alle deine Moodle Daten runter</h2>
+		<p>
+		Klicke dafür in Moodle auf dem Dashboard oben auf dein Profilbild, klicke dann auf Profil.<br>
+		Klicke bei "Datenschutz und Richtlinien" auf "Alle über mich gespeicherten Daten exportieren".<br>
+		Dann auf "Änderungen speichern".<br>
+		Kicke danach wieder auf dein Profilbild und dann auf Profil.<br>
+		Klicke bei "Datenschutz und Richtlinien" auf "Datenanfragen"<br>
+		Warte bis dein Download verfügbar ist (ca. 10m), ggf musst du diese Seite neuladen.<br>
+		Wenn der Download verfügbar ist, klicke auf Aktionen und "Download".<br>
+		Mache diesen Download nur wenn du im WLAN bist und du Speicherplatz hast, bei mir nimmt der Download ca. 13 GB ein.
+		</p>
+		<h2>2. Extrahiere das fertig gedownloadete ZIP-Archiv</h2>
+		<h2 style="cursor: pointer;" onclick="selectFolder()">3. Klicke hier und wähle den extrahierten Ordner aus</h2>
+		<a style="position: absolute; right: 0.5rem; bottom: 0.5rem; color: white;" target="_blank" href="https://github.com/Myxoz/moodle-exam-viewer">Quellcode</a>
+	</div>
+    <div id="courseSelection">
+		<h1>Wähle den Kurs für die Einsicht</h1>
+	</div>
+    <div id="quizSelection">
+		<h1>Wähle die bestimmte Klausur für die Einsicht</h1>
+	</div>
+    <div id="einsicht"></div>
   </body>
 </html>
