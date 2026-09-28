@@ -3,16 +3,18 @@ import { NavigatableDir, parseJSON } from "./utils";
 
 async function selectFolder() {
 	const allMoodleKlausurCourses: [MoodleCourse, MoodleKlausur[]][] = [];
+	const introductionElement = document.getElementById("introduction");
+	const progress_searching = document.getElementById("progress_searching")
+	const progress_searchingtwo = document.getElementById("progress_searchingtwo")
 	do {
-		const introductionElement = document.getElementById("introduction");
-		if (introductionElement !== null) introductionElement.style.display = "none";
-		const progress_searching = document.getElementById("progress_searching")
 		const folder = await window.showDirectoryPicker({ mode: "read" });
 		const queue = [new NavigatableDir(folder)];
 		while (queue.length != 0) {
 			const currentFolder = queue.shift();
 			if (!currentFolder) break;
-			if(progress_searching !== null) progress_searching.innerHTML = "Searching "+currentFolder.name+"\nGefundene Klausur Kurse: "+allMoodleKlausurCourses.length
+			if(progress_searching !== null) progress_searching.innerHTML = "Gefunden: "+allMoodleKlausurCourses.length
+			if(progress_searchingtwo !== null) progress_searchingtwo.innerHTML = "Searching "+currentFolder.name
+			// await new Promise((r)=>setTimeout(()=>r(1), 100))
 			if (currentFolder.name.startsWith("Course")) {
 				const possiblyValidCourse = await MoodleCourse.getKlausurCourses(currentFolder)
 				if (possiblyValidCourse !== undefined) {
@@ -27,7 +29,7 @@ async function selectFolder() {
 			if(progress_searching !== null) progress_searching.innerHTML = ""
 		}
 	} while (allMoodleKlausurCourses.length == 0)
-
+	if (introductionElement !== null) introductionElement.style.display = "none";
 	selectCourses(allMoodleKlausurCourses);
 }
 
@@ -136,6 +138,196 @@ async function showEinsicht(klausur: MoodleKlausur, renderMode: RenderMode) {
 		// JSON.stringify(jsonContent)
 		einsichtElement.appendChild(taskElement)
 	}
+	const grow = document.createElement("div")
+	grow.style.flexGrow = "1";
+	modusDiv.appendChild(grow)
+	const gradSpan = document.createElement("span")
+	gradSpan.onclick = () => { showGrades(klausur.course) }
+	gradSpan.style.textDecoration = "underline"
+	gradSpan.style.cursor = "pointer"
+	gradSpan.innerHTML = "Noten"
+	modusDiv.appendChild(gradSpan)
+}
+// The one thing I tried to vibecode
+async function showGrades(exam: MoodleCourse) {
+	const gradesDir = exam.gradesHandle
+
+	const data = await gradesDir.json("data.json").catch(() => undefined)
+	const history = await gradesDir.json("history.json").catch(() => undefined)
+
+	const grades = Array.isArray(data?.grades) ? data.grades : []
+	const historyGrades = Array.isArray(history?.grades) ? history.grades : []
+
+	// Prefer current data, but fall back to the latest useful history entry.
+	const allGrades = [...grades, ...historyGrades]
+
+	const note =
+		grades.find((g: any) => g.grade_formatted?.match(/\b\d+(?:,\d+)?\b/)) ??
+		[...historyGrades].reverse().find((g: any) =>
+			g.grade_formatted?.match(/\b\d+(?:,\d+)?\b/)
+		)
+
+	const point =
+		grades.find((g: any) =>
+			g.item?.toLowerCase().includes("klausur") &&
+			g.grade != null &&
+			g.grade_formatted?.match(/\d/)
+		) ??
+		[...historyGrades].reverse().find((g: any) =>
+			g.item?.toLowerCase().includes("klausur") &&
+			g.grade != null &&
+			g.grade_formatted?.match(/\d/)
+		)
+
+	const noteMatch = note?.grade_formatted?.match(/\b\d+(?:,\d+)?\b/g) ?? []
+	const pointMatch = point?.grade_formatted?.match(/\d+(?:[.,]\d+)?/)
+
+	const displayedNote =
+		noteMatch.length === 1
+			? noteMatch[0]
+			: noteMatch.length > 1
+				? noteMatch[noteMatch.length - 1]
+				: undefined
+
+	const displayedPoints = pointMatch?.[0]
+
+	const backdrop = document.createElement("div")
+	backdrop.style.cssText = `
+		position:fixed; inset:0; z-index:9999;
+		display:flex; align-items:center; justify-content:center;
+		padding:16px; box-sizing:border-box;
+		background:rgba(0,0,0,.65);
+	`
+
+	const modal = document.createElement("div")
+	modal.style.cssText = `
+		width:min(680px,100%);
+		max-height:calc(100vh - 32px);
+		overflow:auto;
+		box-sizing:border-box;
+		padding:24px;
+		border-radius:16px;
+		background:var(--background-primary,#fff);
+		color:var(--text-primary,#111);
+		font-family:system-ui,sans-serif;
+		box-shadow:0 20px 60px rgba(0,0,0,.3);
+	`
+
+	const close = () => modal.parentElement?.remove()
+
+	const closeButton = document.createElement("button")
+	closeButton.textContent = "×"
+	closeButton.onclick = close
+	closeButton.style.cssText = `
+		border:0; background:none; cursor:pointer;
+		font-size:28px; line-height:1; opacity:.6;
+	`
+
+	const header = document.createElement("div")
+	header.style.cssText = `
+		display:flex; justify-content:space-between;
+		align-items:center; margin-bottom:4px;
+	`
+	header.innerHTML = `<strong style="font-size:20px">Klausurergebnis</strong>`
+	header.appendChild(closeButton)
+
+	const disclaimer = document.createElement("div")
+	disclaimer.textContent =
+		"Die angezeigten Angaben können vorläufig sein und sich noch ändern."
+	disclaimer.style.cssText = `
+		font-size:13px; opacity:.6; margin-bottom:24px;
+	`
+
+	const summary = document.createElement("div")
+	summary.style.cssText = `
+		display:flex; align-items:center;
+		justify-content:space-evenly;
+		gap:24px; margin-bottom:28px;
+		text-align:center;
+	`
+
+	summary.innerHTML = `
+		<div style="flex:1">
+			<div style="font-size:42px;font-weight:800">
+				${displayedNote ?? "–"}
+			</div>
+			<div style="font-size:13px;opacity:.6">Note</div>
+		</div>
+
+		<div style="width:1px;height:50px;background:currentColor;opacity:.15"></div>
+
+		<div style="flex:1">
+			<div style="font-size:30px;font-weight:700">
+				${displayedPoints ?? "–"}
+			</div>
+			<div style="font-size:13px;opacity:.6">Punkte</div>
+		</div>
+	`
+
+	modal.append(header, disclaimer, summary)
+
+	if (historyGrades.length) {
+		const historyTitle = document.createElement("strong")
+		historyTitle.textContent = "Verlauf"
+		historyTitle.style.cssText = `
+			display:block; margin-bottom:12px; font-size:17px;
+		`
+
+		const timeline = document.createElement("div")
+		timeline.style.cssText = `
+			display:flex; flex-direction:column; gap:8px;
+		`
+
+		// Reverse chronological order, with the newest information first.
+		;[...historyGrades].reverse().forEach((entry: any) => {
+			const row = document.createElement("div")
+			row.style.cssText = `
+				padding:10px 12px;
+				border-radius:10px;
+				background:rgba(127,127,127,.08);
+			`
+
+			const date = entry.timecreated
+				? new Date(entry.timecreated).toLocaleString("de-DE", {
+					dateStyle: "medium",
+					timeStyle: "short"
+				})
+				: undefined
+
+			const value = entry.grade_formatted && entry.grade_formatted !== "-"
+				? entry.grade_formatted
+				: entry.grade ?? "–"
+
+			row.innerHTML = `
+				<div style="display:flex;justify-content:space-between;gap:12px">
+					<strong>${entry.item ?? "Unbekannt"}</strong>
+					<strong>${value}</strong>
+				</div>
+				${date ? `<div style="font-size:12px;opacity:.55;margin-top:3px">${date}</div>` : ""}
+			`
+
+			timeline.appendChild(row)
+		})
+
+		modal.append(historyTitle, timeline)
+	}
+
+	backdrop.appendChild(modal)
+	document.body.appendChild(backdrop)
+
+	backdrop.onclick = e => {
+		if (e.target === backdrop)
+			close()
+	}
+
+	const escape = (e: KeyboardEvent) => {
+		if (e.key === "Escape") {
+			close()
+			document.removeEventListener("keydown", escape)
+		}
+	}
+
+	document.addEventListener("keydown", escape)
 }
 function formatCell(text: string, answer: Iterator<string> | undefined, renderMode: RenderMode): HTMLElement {
 	const multipleChoiceRegex = /^{([^;]*; )+[^;}]+}$/
