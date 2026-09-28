@@ -4,11 +4,15 @@ import { NavigatableDir, parseJSON } from "./utils";
 async function selectFolder() {
 	const allMoodleKlausurCourses: [MoodleCourse, MoodleKlausur[]][] = [];
 	do {
+		const introductionElement = document.getElementById("introduction");
+		if (introductionElement !== null) introductionElement.style.display = "none";
+		const progress_searching = document.getElementById("progress_searching")
 		const folder = await window.showDirectoryPicker({ mode: "read" });
 		const queue = [new NavigatableDir(folder)];
 		while (queue.length != 0) {
 			const currentFolder = queue.shift();
 			if (!currentFolder) break;
+			if(progress_searching !== null) progress_searching.innerHTML = "Searching "+currentFolder.name+"\nGefundene Klausur Kurse: "+allMoodleKlausurCourses.length
 			if (currentFolder.name.startsWith("Course")) {
 				const possiblyValidCourse = await MoodleCourse.getKlausurCourses(currentFolder)
 				if (possiblyValidCourse !== undefined) {
@@ -20,11 +24,10 @@ async function selectFolder() {
 		}
 		if (allMoodleKlausurCourses.length == 0) {
 			alert("Kein Moodle Kurs konnte gefunden werden.")
+			if(progress_searching !== null) progress_searching.innerHTML = ""
 		}
 	} while (allMoodleKlausurCourses.length == 0)
 
-	const introductionElement = document.getElementById("introduction");
-	if (introductionElement !== null) introductionElement.style.display = "none";
 	selectCourses(allMoodleKlausurCourses);
 }
 
